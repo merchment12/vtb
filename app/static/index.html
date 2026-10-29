@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разбор блокировок самозанятых</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
+<style>
+.wrap{max-width:880px;margin:0 auto;padding:40px 16px}
+h2{font-size:26px;font-weight:800;margin:0 0 8px}
+.lead{color:var(--muted);margin:0 0 28px;max-width:640px}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+a.role{display:block;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:22px;transition:border-color .15s}
+a.role:hover{border-color:var(--blue)}
+.role b{display:block;font-size:18px;font-weight:800;margin-bottom:6px;color:var(--navy)}
+.role ul{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:13px}
+.flow{margin-top:28px}
+.flow ol{margin:0;padding-left:20px} .flow li{margin-bottom:6px}
+@media(max-width:700px){.roles{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header><div><h1>Разбор блокировок самозанятых</h1><small>Демо MVP · синтетические данные</small></div><a href="/docs">API</a></header>
+<div class="wrap">
+  <h2>Кем войти?</h2>
+  <p class="lead">Для показа откройте оба экрана рядом: действия клиента появляются у сотрудника, ответы сотрудника — у клиента, без перезагрузки.</p>
+  <div class="roles">
+    <a class="role" href="/client" target="_blank"><b>Клиент →</b>Самозанятый, у которого заблокировали карту.
+      <ul><li>операции по карте банк подтягивает сам</li><li>загружает чеки и справки</li><li>поясняет поступления без чека</li><li>переписывается с банком и получает ответ</li></ul></a>
+    <a class="role" href="/staff" target="_blank"><b>Сотрудник банка →</b>Разбирает кейс по готовой сверке.
+      <ul><li>сверка «платёж ↔ чек» и индикаторы риска</li><li>рекомендация системы — решение за сотрудником</li><li>разблокировать, отказать или запросить документы</li><li>переписка и файлы клиента</li></ul></a>
+  </div>
+  <div class="card flow"><h3>Сценарий показа</h3><ol>
+    <li>Клиент: «Новое обращение» → «Честный репетитор» → «Начать». Операции по карте уже подтянуты из банка.</li>
+    <li>Клиент загружает чеки (<code>samples/honest_receipts.json</code>) и справки (любой PDF), поясняет 4 поступления без чека.</li>
+    <li>«Отправить на проверку». Кейс появляется в очереди сотрудника.</li>
+    <li>Сотрудник открывает кейс: сверка, индикаторы, вердикт. Запрашивает документы или принимает решение.</li>
+    <li>Клиент видит ответ в переписке. Для сравнения повторите с «Дроппером» или нажмите у сотрудника «Загрузить демо-кейсы».</li>
+  </ol></div>
+</div>
+</body>
+</html>

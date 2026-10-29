@@ -4,11 +4,11 @@
 """
 
 from contextlib import asynccontextmanager
-
 from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.api.routes import api_router
 from app.db.session import init_db
@@ -24,9 +24,10 @@ async def lifespan(_: FastAPI):
 app = FastAPI(
     title="Разблокировка самозанятых (115-ФЗ)",
     description=(
-        "Клиент загружает выписку и чеки «Мой налог», система проверяет полноту пакета и сверяет "
-        "поступления с чеками. Сотрудник получает готовую сверку с индикаторами риска.\n\n"
-        "**Экран сотрудника: [/staff](/staff)** — нажмите «Загрузить демо-кейсы»."
+        "Операции по карте банк берёт из своей системы, клиент приносит чеки «Мой налог» и пояснения. "
+        "Система проверяет полноту пакета и сверяет поступления с чеками. Сотрудник получает готовую "
+        "сверку с индикаторами риска.\n\n"
+        "**Экраны: [клиент](/client) · [сотрудник](/staff) · [выбор роли](/)**"
     ),
     version="0.1.0",
     lifespan=lifespan,
@@ -34,19 +35,31 @@ app = FastAPI(
 app.include_router(api_router)
 
 
-STAFF_PAGE = Path(__file__).resolve().parent / "static" / "staff.html"
+STATIC = Path(__file__).resolve().parent / "static"
+app.mount("/static", StaticFiles(directory=STATIC), name="static")  # общие стили и скрипты экранов
 
 
-@app.get("/", include_in_schema=False)
+def _page(name: str) -> FileResponse:
+    """HTML-страница из app/static."""
+    return FileResponse(STATIC / name, media_type="text/html; charset=utf-8")
+
+
+@app.get("/", tags=["экраны"], response_class=FileResponse)
 def index():
-    """Корень ведёт на экран сотрудника."""
-    return RedirectResponse("/staff")
+    """Выбор роли для демо: клиент или сотрудник."""
+    return _page("index.html")
 
 
-@app.get("/staff", tags=["экран сотрудника"], response_class=FileResponse)
+@app.get("/client", tags=["экраны"], response_class=FileResponse)
+def client_page():
+    """Экран клиента: обращение, документы, пояснения к поступлениям и переписка с банком."""
+    return _page("client.html")
+
+
+@app.get("/staff", tags=["экраны"], response_class=FileResponse)
 def staff_page():
-    """Экран сотрудника: очередь кейсов и готовая сверка. Данные берёт из /api/staff."""
-    return FileResponse(STAFF_PAGE, media_type="text/html; charset=utf-8")
+    """Экран сотрудника: очередь кейсов, готовая сверка, переписка и решение."""
+    return _page("staff.html")
 
 
 @app.get("/health", tags=["service"])

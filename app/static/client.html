@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Разблокировка карты · клиент</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
+<style>
+.wrap{max-width:560px;margin:0 auto;padding:20px 16px 60px;display:flex;flex-direction:column;gap:14px}
+.banner{border-radius:16px;padding:16px 18px;font-weight:600}
+.banner b{display:block;font-size:17px;font-weight:800;margin-bottom:4px}
+.banner.draft{background:var(--info-bg)} .banner.submitted,.banner.in_review{background:var(--soft)}
+.banner.docs_requested{background:var(--warn-bg)} .banner.unblocked{background:var(--ok-bg)} .banner.rejected{background:var(--high-bg)}
+.step{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--soft)}
+.step:last-child{border-bottom:0}
+.step .mark{flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:800;background:var(--soft);color:var(--muted)}
+.step.done .mark{background:var(--ok-bg);color:var(--ok)}
+.step .t{font-weight:700} .step .h{font-size:12px;color:var(--muted)}
+.doc{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--soft)}
+.doc:last-child{border-bottom:0}
+.doc .files{font-size:12px;color:var(--ok)}
+.tx{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.tx.saved{border-color:#BFE3CE;background:#FAFDFB}
+.tx .top{display:flex;justify-content:space-between;gap:10px;font-weight:700}
+.tx .sub{font-size:12px;color:var(--muted);margin-bottom:8px}
+.tx .row{display:grid;grid-template-columns:170px 1fr;gap:8px}
+.tx .row input{padding:8px} .tx .row select{padding:8px}
+.tx .foot{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.big{width:100%;padding:14px;font-size:15px}
+.case-link{display:block;width:100%;text-align:left;font-weight:400;margin-bottom:6px}
+.case-link b{display:block} .case-link span{font-size:12px;color:var(--muted)}
+a.back{color:var(--blue);font-weight:700;text-decoration:none}
+.doc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:4px}
+.doc-head h3{margin:0}
+.doc-head button{font-size:12px;padding:6px 10px}
+.missing{background:var(--high-bg);color:var(--high);border-radius:12px;padding:10px 12px;font-size:13px;display:none}
+@media(max-width:480px){.tx .row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>Разблокировка карты</h1><small>Экран клиента · синтетические данные</small></div>
+  <a href="/staff" target="_blank">Экран сотрудника ↗</a>
+</header>
+<div class="wrap" id="app"><div class="empty">Загрузка…</div></div>
+<input type="file" id="chatFile" hidden>
+<div class="toast" id="toast"></div>
+<script src="/static/common.js"></script>
+<script>
+const EDITABLE = ["draft", "docs_requested"];
+const CATEGORY = {business_income: "Доход от работы", personal: "Личный перевод",
+  own_transfer: "Мой другой счёт", refund: "Возврат или кешбэк"};
+const BANNER = {
+  draft: ["Соберите пакет документов", "Операции по карте банк уже подтянул сам — выписку загружать не нужно. Добавьте чеки и справки, поясните поступления без чека и отправьте пакет."],
+  submitted: ["Пакет отправлен", "Сотрудник банка скоро начнёт проверку. Ответ придёт в переписку ниже."],
+  in_review: ["Идёт проверка", "Сотрудник проверяет ваш пакет. Ответ придёт в переписку ниже."],
+  docs_requested: ["Банк просит дополнить пакет", "Что нужно — в переписке ниже. Дополните пакет и отправьте его снова."],
+  unblocked: ["Карта разблокирована", "Проверка завершена, ограничения сняты."],
+  rejected: ["В разблокировке отказано", "Подробности — в переписке ниже."],
+};
+const DOC_ACCEPT = {receipts: ".json,.csv,.xlsx,.xls"};
+let caseId = null, state = {status: null, docs: 0};
+
+const app = () => document.getElementById("app");
+const caseFromHash = () => Number((location.hash.match(/case=(\d+)/) || [])[1]) || null;
+
+async function route(){
+  caseId = caseFromHash();
+  if (caseId) await openCase(); else await renderStart();
+}
+
+// --- выбор или создание обращения ---
+async function renderStart(){
+  const [clients, cases] = await Promise.all([api("/api/demo/clients"), api("/api/staff/cases")]);
+  app().innerHTML = `
+  <div class="card"><h3>Новое обращение</h3>
+    <div class="actions" style="margin-bottom:12px"><span class="muted">Заполнить за демо-клиента:</span>
+      ${clients.map((c, i) => `<button data-i="${i}" class="demo">${esc(c.label)}</button>`).join("")}</div>
+    <form id="newCase">
+      <div class="field"><label>ИНН</label><input type="text" name="inn" required inputmode="numeric" maxlength="12"></div>
+      <div class="field"><label>ФИО</label><input type="text" name="full_name" required></div>
+      <div class="field"><label>Чем вы занимаетесь</label><input type="text" name="activity" placeholder="Например, репетитор по английскому"></div>
+      <div class="field"><label>Что просит банк</label><select name="block_reason">
+        ${Object.entries(REASON).map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select></div>
+      <div class="field"><label>Дата блокировки</label><input type="date" name="blocked_at"></div>
+      <button class="primary big">Начать</button>
+    </form>
+    <div class="note">Операции по карте банк возьмёт из своей системы сам.</div>
+  </div>
+  <div class="card"><h3>Мои обращения <span class="muted" style="font-weight:600;font-size:12px">· демо: все кейсы</span></h3>
+    ${cases.length ? cases.map(c => `<button class="case-link" data-id="${c.id}"><b>${esc(c.full_name)}</b>
+      <span>#${c.id} · ${esc(STATUS[c.status] || c.status)} · ${esc(REASON[c.block_reason] || c.block_reason)}</span></button>`).join("")
+      : '<div class="muted">Обращений пока нет</div>'}
+  </div>`;
+  const form = document.getElementById("newCase");
+  app().querySelectorAll(".demo").forEach(b => b.onclick = () => {
+    const c = clients[Number(b.dataset.i)];
+    for (const k of ["inn", "full_name", "activity", "block_reason", "blocked_at"]) form.elements[k].value = c[k] || "";
+  });
+  app().querySelectorAll(".case-link").forEach(b => b.onclick = () => location.hash = `case=${b.dataset.id}`);
+  form.onsubmit = async e => {
+    e.preventDefault();
+    const body = Object.fromEntries(new FormData(form));
+    if (!body.blocked_at) delete body.blocked_at;
+    try { const c = await api("/api/cases", {method: "POST", body: JSON.stringify(body)}); location.hash = `case=${c.id}`; }
+    catch (err) { toast("Ошибка: " + err.message); }
+  };
+}
+
+// --- обращение ---
+async function openCase(){
+  const [c, cl, txs] = await Promise.all([
+    api(`/api/cases/${caseId}`), api(`/api/cases/${caseId}/checklist`),
+    api(`/api/cases/${caseId}/transactions?only_unmatched=true`)]);
+  const all = await api(`/api/cases/${caseId}/transactions`);
+  state = {status: c.status, docs: c.documents.length};
+  const editable = EDITABLE.includes(c.status);
+  const [title, text] = BANNER[c.status] || [c.status, ""];
+  const docs = cl.checklist.filter(i => i.code.startsWith("doc:"));
+  const required = docs.filter(i => i.required), uploaded = required.filter(i => i.done).length;
+  const steps = [
+    {code: "docs", title: `Обязательные документы: ${uploaded} из ${required.length}`, required: true,
+     done: uploaded === required.length, hint: "Загрузите их в блоке «Документы» ниже."},
+    ...cl.checklist.filter(i => !i.code.startsWith("doc:")),
+  ];
+
+  app().innerHTML = `
+  <a class="back" href="#">← Обращения</a>
+  <div class="banner ${esc(c.status)}"><b>${esc(title)}</b>${esc(text)}</div>
+  <div class="card"><h3>Что нужно для проверки</h3>
+    ${steps.map(i => `<div class="step ${i.done ? "done" : ""}"><span class="mark">${i.done ? "✓" : "•"}</span>
+      <div><div class="t">${esc(i.title)}${i.code === "bank_transactions" && i.done ? ` — ${all.length} операций` : ""}
+        ${i.required && !i.done ? ' <span class="chip warn">обязательно</span>' : ""}</div>
+      ${i.hint && !i.done ? `<div class="h">${esc(i.hint)}</div>` : ""}</div></div>`).join("")}
+  </div>
+  <div class="card"><div class="doc-head"><h3>Документы</h3>
+      ${editable ? '<button id="demoDocs" title="Загрузить синтетические чеки и справки за клиента">Подставить демо-документы</button>' : ""}</div>
+    ${docs.map(i => {
+      const type = i.code.slice(4);
+      const files = c.documents.filter(x => x.doc_type === type).map(x => esc(x.filename)).join(", ");
+      return `<div class="doc"><div><div class="t" style="font-weight:700">${esc(i.title)}
+          ${i.required ? '<span class="chip warn">обязательно</span>' : '<span class="chip info">по желанию</span>'}</div>
+        ${files ? `<div class="files">✓ ${files}</div>` : (i.hint ? `<div class="note" style="margin:2px 0 0">${esc(i.hint)}</div>` : "")}</div>
+        <label><input type="file" hidden data-type="${esc(type)}" accept="${DOC_ACCEPT[type] || ""}" ${editable ? "" : "disabled"}>
+          <span class="chip ${files ? "ok" : "info"}" style="cursor:${editable ? "pointer" : "default"};padding:8px 12px;font-size:12px">${files ? "Заменить" : "Загрузить"}</span></label></div>`;
+    }).join("")}
+  </div>
+  <div class="card"><h3>Поясните поступления (${cl.left_to_explain} без пояснения)</h3>
+    <div class="note" style="margin:0 0 10px">К этим поступлениям нет чека. Если это оплата за работу — оставьте «Доход от работы» и напишите, за что.
+      Если это перевод от родственника или долг — выберите «Личный перевод».</div>
+    ${txs.length ? txs.map(t => `<div class="tx ${t.client_comment ? "saved" : ""}" data-id="${t.id}">
+      <div class="top"><span>${esc(t.counterparty || "Отправитель не указан")}</span><span>${rub(t.amount)}</span></div>
+      <div class="sub">${dt(t.operated_at)} · ${esc(t.purpose || "")}</div>
+      <div class="row"><select ${editable ? "" : "disabled"}>${Object.entries(CATEGORY).map(([k, v]) =>
+          `<option value="${k}" ${t.category === k ? "selected" : ""}>${esc(v)}</option>`).join("")}</select>
+        <input type="text" placeholder="За что эти деньги" value="${esc(t.client_comment || "")}" ${editable ? "" : "disabled"}></div>
+      <div class="foot"><span class="muted">${t.client_comment ? "✓ Пояснение сохранено" : ""}</span>
+        <button class="save" ${editable ? "" : "disabled"}>Сохранить</button></div></div>`).join("")
+      : '<div class="muted">Все поступления подтверждены чеками — пояснять ничего не нужно.</div>'}
+  </div>
+  <div class="missing" id="missing"></div>
+  <button class="primary big" id="submit" ${editable ? "" : "disabled"}>${c.status === "docs_requested" ? "Отправить повторно" : "Отправить на проверку"}</button>
+  ${editable && !cl.ready_to_submit ? '<div class="note" style="margin-top:-6px">Кнопка подскажет, чего ещё не хватает.</div>' : ""}
+  <div class="card"><h3>Переписка с банком</h3>
+    <div class="chat" id="chat"></div>
+    <div class="composer"><textarea id="msg" placeholder="Написать сотруднику"></textarea>
+      <button title="Прикрепить файл" id="attach" ${editable ? "" : "disabled"}>📎</button>
+      <button class="primary" id="send">Отправить</button></div>
+  </div>`;
+
+  app().querySelectorAll('input[type=file][data-type]').forEach(inp => inp.onchange = () => upload(inp.dataset.type, inp.files[0]));
+  app().querySelectorAll(".tx .save").forEach(b => b.onclick = () => explain(b.closest(".tx")));
+  document.getElementById("submit").onclick = submit;
+  const demoBtn = document.getElementById("demoDocs");
+  if (demoBtn) demoBtn.onclick = () => fillDemoDocs(demoBtn);
+  document.getElementById("send").onclick = sendMessage;
+  document.getElementById("attach").onclick = () => document.getElementById("chatFile").click();
+  await refreshChat();
+}
+
+async function upload(type, file){
+  if (!file) return;
+  const fd = new FormData(); fd.append("file", file);
+  try {
+    const r = await api(`/api/cases/${caseId}/documents?doc_type=${type}`, {method: "POST", body: fd});
+    toast(r.parsed ? `Загружено. Разобрано чеков: ${r.parsed}` : "Документ загружен");
+    await openCase();
+  } catch (e) { toast("Не получилось загрузить: " + e.message); }
+}
+
+// демо: загрузить за клиента всё обязательное — чеки «Мой налог» и PDF-справки
+async function fillDemoDocs(btn){
+  btn.disabled = true;
+  try {
+    const r = await api(`/api/demo/cases/${caseId}/fill-documents`, {method: "POST"});
+    toast(r.uploaded.length ? `Загружено: ${r.uploaded.length} док.${r.receipts ? `, чеков разобрано: ${r.receipts}` : ""}`
+                            : "Все обязательные документы уже загружены");
+    await openCase();
+  } catch (e) { toast("Не получилось: " + e.message); btn.disabled = false; }
+}
+
+async function explain(box){
+  const body = {category: box.querySelector("select").value, client_comment: box.querySelector("input").value};
+  if (!body.client_comment.trim()){ toast("Напишите пару слов о том, что это за деньги"); return; }
+  try { await api(`/api/cases/${caseId}/transactions/${box.dataset.id}`, {method: "PATCH", body: JSON.stringify(body)}); toast("Пояснение сохранено"); await openCase(); }
+  catch (e) { toast("Ошибка: " + e.message); }
+}
+
+async function submit(){
+  const box = document.getElementById("missing");
+  try {
+    await api(`/api/cases/${caseId}/submit`, {method: "POST"});
+    toast("Пакет отправлен на проверку");
+    await openCase();
+  } catch (e) {
+    box.style.display = "block";
+    box.innerHTML = "<b>Пока нельзя отправить.</b> " + esc(e.message);
+  }
+}
+
+async function refreshChat(){
+  const el = document.getElementById("chat");
+  if (el) renderChat(el, await api(`/api/cases/${caseId}/messages`), "client");
+}
+
+async function sendMessage(){
+  const ta = document.getElementById("msg");
+  const text = ta.value.trim();
+  if (!text) return;
+  try { renderChat(document.getElementById("chat"), await api(`/api/cases/${caseId}/messages`, {method: "POST", body: JSON.stringify({text})}), "client"); ta.value = ""; }
+  catch (e) { toast("Ошибка: " + e.message); }
+}
+
+document.getElementById("chatFile").onchange = e => { upload("other", e.target.files[0]); e.target.value = ""; };
+
+// пока открыт кейс, подхватываем действия сотрудника: ответы и смену статуса
+setInterval(async () => {
+  if (!caseId) return;
+  try {
+    const c = await api(`/api/cases/${caseId}`);
+    if ((c.status !== state.status || c.documents.length !== state.docs) && !isTyping()) await openCase();
+    else await refreshChat();
+  } catch (_) { /* сервер перезапускается — попробуем в следующий раз */ }
+}, 4000);
+
+window.onhashchange = route;
+route().catch(e => app().innerHTML = `<div class="card empty">Ошибка: ${esc(e.message)}</div>`);
+</script>
+</body>
+</html>

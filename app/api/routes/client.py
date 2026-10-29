@@ -10,8 +10,8 @@ from app.db import repository
 from app.db.session import get_db
 from app.models.enums import CaseStatus, DocType, TxCategory
 from app.models.orm import Case, utcnow
-from app.models.schemas import CaseCreate, CaseOut, EventOut, TxOut, TxUpdate, UploadResult
-from app.services import npd
+from app.models.schemas import CaseCreate, CaseOut, EventOut, MessageIn, MessageOut, TxOut, TxUpdate, UploadResult
+from app.services import conversation, npd
 from app.services.bank.transactions import pull_transactions
 from app.services.documents.parsers import ParseError
 from app.services.documents.upload import attach_document
@@ -144,3 +144,17 @@ def submit(case: Case = Depends(get_case), db: Session = Depends(get_db)):
 def list_events(case: Case = Depends(get_case), db: Session = Depends(get_db)):
     """Журнал кейса: кто и что делал, по порядку."""
     return repository.list_events(db, case.id)
+
+
+@router.get("/{case_id}/messages", response_model=list[MessageOut])
+def list_messages(case: Case = Depends(get_case), db: Session = Depends(get_db)):
+    """Переписка с банком: сообщения, запросы документов и итог проверки. Индикаторов риска здесь нет."""
+    return conversation.feed(repository.list_events(db, case.id), for_staff=False)
+
+
+@router.post("/{case_id}/messages", response_model=list[MessageOut], status_code=201)
+def send_message(body: MessageIn, case: Case = Depends(get_case), db: Session = Depends(get_db)):
+    """Клиент пишет сотруднику. Возвращает обновлённую ленту."""
+    repository.log_event(db, case, "client", "message", {"text": body.text.strip()})
+    db.commit()
+    return conversation.feed(repository.list_events(db, case.id), for_staff=False)

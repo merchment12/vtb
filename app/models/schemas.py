@@ -109,3 +109,20 @@ class EventOut(BaseModel):
     kind: str  # created, uploaded, submitted, docs_requested, decided...
     payload: dict | None  # подробности события
     created_at: datetime
+
+
+class MessageIn(BaseModel):
+    """Сообщение в переписке по кейсу."""
+
+    text: str = Field(min_length=1, max_length=2000, examples=["Добавила справку о доходах"])
+
+
+class MessageOut(BaseModel):
+    """Строка ленты переписки: сообщение, запрос документов или итог проверки."""
+
+    at: datetime
+    sender: str = Field(alias="from")  # client / staff / system
+    text: str | None
+    items: list[str] | None = None  # пункты запроса документов
+
+    model_config = ConfigDict(populate_by_name=True, serialize_by_alias=True)

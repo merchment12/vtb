@@ -6,23 +6,8 @@
 <title>Разбор блокировок · сотрудник</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/common.css">
 <style>
-:root{
-  --navy:#0A2A82; --blue:#1F5FD1; --sky:#00A3E0; --bg:#F4F7FC; --card:#FFFFFF; --line:#DCE3EF;
-  --ink:#0B1B3F; --muted:#4A5878; --soft:#EAF0F9;
-  --ok:#1E7B4F; --ok-bg:#E6F4EC; --info:#1F5FD1; --info-bg:#EAF0F9;
-  --warn:#9A5B00; --warn-bg:#FFF3DC; --high:#B3261E; --high-bg:#FDE8E7;
-}
-*{box-sizing:border-box}
-body{margin:0;font-family:Manrope,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45}
-header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:5}
-header h1{font-size:17px;margin:0;font-weight:800}
-header small{color:#9FC0F0;font-weight:600}
-button{font:inherit;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;cursor:pointer;font-weight:700}
-button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
-button.danger{color:var(--high);border-color:#F2C4C1}
-button.ghost{background:transparent;color:#fff;border-color:#3A5BB0}
-button:disabled{opacity:.5;cursor:default}
 .layout{display:grid;grid-template-columns:300px 1fr;gap:20px;padding:20px 24px;align-items:start}
 aside{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:12px;position:sticky;top:76px}
 aside h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);margin:4px 6px 10px}
@@ -31,10 +16,7 @@ aside h2{font-size:12px;letter-spacing:1px;text-transform:uppercase;color:var(--
 .qitem.active{border-color:var(--blue);background:var(--soft)}
 .qitem b{display:block;font-size:14px}
 .qitem span{font-size:12px;color:var(--muted)}
-.empty{color:var(--muted);padding:24px;text-align:center}
 main{min-width:0;display:flex;flex-direction:column;gap:16px}
-.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
-.card h3{margin:0 0 12px;font-size:16px;font-weight:800}
 .head{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:flex-start}
 .head h2{margin:0;font-size:22px;font-weight:800}
 .meta{color:var(--muted);font-size:13px;margin-top:4px}
@@ -51,18 +33,10 @@ table{width:100%;border-collapse:collapse;font-size:13px}
 th{text-align:left;color:var(--muted);font-weight:700;font-size:12px;padding:8px;border-bottom:1px solid var(--line)}
 td{padding:8px;border-bottom:1px solid var(--soft);vertical-align:top}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-.chip{display:inline-block;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;white-space:nowrap}
-.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.info{background:var(--info-bg);color:var(--info)}
-.chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.high{background:var(--high-bg);color:var(--high)}
-.muted{color:var(--muted)}
 .arrow{color:var(--blue);font-weight:800;text-align:center}
 .scroll{max-height:420px;overflow:auto}
-.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-textarea,input[type=text]{font:inherit;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--ink)}
-textarea{min-height:120px;resize:vertical}
-.note{font-size:12px;color:var(--muted);margin-top:8px}
-.toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:12px;display:none;max-width:360px;z-index:10}
 .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.docs a{color:var(--blue);font-weight:700;text-decoration:none}
 @media(max-width:1100px){.kpis{grid-template-columns:repeat(2,1fr)}.two{grid-template-columns:1fr}}
 @media(max-width:800px){.layout{grid-template-columns:1fr}aside{position:static}}
 </style>
@@ -72,7 +46,8 @@ textarea{min-height:120px;resize:vertical}
   <div><h1>Разбор блокировок самозанятых</h1><small>Рабочее место сотрудника · синтетические данные</small></div>
   <div class="actions">
     <button class="ghost" id="seedBtn">Загрузить демо-кейсы</button>
-    <a href="/docs" style="color:#9FC0F0;font-weight:700;text-decoration:none">API</a>
+    <a href="/client" target="_blank">Экран клиента ↗</a>
+    <a href="/docs">API</a>
   </div>
 </header>
 <div class="layout">
@@ -80,22 +55,17 @@ textarea{min-height:120px;resize:vertical}
   <main id="main"><div class="card empty">Выберите кейс в очереди или нажмите «Загрузить демо-кейсы».</div></main>
 </div>
 <div class="toast" id="toast"></div>
+<script src="/static/common.js"></script>
 <script>
-const STATUS = {draft:"Черновик клиента", submitted:"Отправлен", in_review:"На проверке",
-  docs_requested:"Запрошены документы", unblocked:"Разблокирован", rejected:"Отказ"};
-const REASON = {income_source:"Подтвердить источник дохода", transit:"Транзитные операции",
-  cash_out:"Снятие наличных", p2p_volume:"Много переводов от физлиц"};
+const DOC = {receipts:"Чеки «Мой налог»", npd_certificate:"Справка о постановке на учёт НПД", income_certificate:"Справка о доходах НПД",
+  contract:"Договор", act:"Акт", explanation:"Письменное пояснение", other:"Файл из переписки"};
 const VERDICT = {low_risk:"Низкий риск", needs_attention:"Нужно внимание", high_risk:"Высокий риск"};
 const LEVEL = {ok:"Норма", info:"Инфо", warn:"Внимание", high:"Высокий"};
 const KIND = {one_to_one:"1 : 1", many_tx:"несколько платежей → чек", many_receipts:"платёж → несколько чеков"};
 const NPD = {active:"активен", inactive:"не плательщик НПД", unknown:"не проверен"};
 const PCT_CODES = new Set(["receipt_coverage","transit","cash_out","night_share","cancelled_receipts","personal_relabel"]);
-let current = null;
+let current = null, currentStatus = null;
 
-const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const rub = v => (v == null ? "—" : Number(v).toLocaleString("ru-RU", {maximumFractionDigits: 0}) + " ₽");
-const dt = v => v ? new Date(v).toLocaleString("ru-RU", {day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit"}) : "—";
-const d = v => v ? new Date(v).toLocaleDateString("ru-RU") : "—";
 function fmtValue(i, v){
   if (v == null) return "—";
   if (PCT_CODES.has(i.code)) return Math.round(v * 100) + "%";
@@ -103,28 +73,24 @@ function fmtValue(i, v){
   if (i.code === "npd_status") return NPD[v] || esc(v);
   return esc(v);
 }
-function toast(msg){ const t = document.getElementById("toast"); t.textContent = msg; t.style.display = "block"; setTimeout(() => t.style.display = "none", 3500); }
-async function api(path, opts = {}){
-  const r = await fetch(path, {headers: {"Content-Type": "application/json"}, ...opts});
-  const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail || body));
-  return body;
-}
-
 async function loadQueue(){
   const cases = await api("/api/staff/cases");
   const q = document.getElementById("queue");
-  if (!cases.length){ q.innerHTML = '<div class="empty">Очередь пуста</div>'; return; }
+  if (!cases.length){ q.innerHTML = '<div class="empty">Очередь пуста</div>'; return cases; }
   q.innerHTML = cases.map(c => `<button class="qitem ${c.id === current ? "active" : ""}" data-id="${c.id}">
       <b>${esc(c.full_name)}</b><span>#${c.id} · ${esc(STATUS[c.status] || c.status)} · ${esc(REASON[c.block_reason] || c.block_reason)}</span></button>`).join("");
   q.querySelectorAll(".qitem").forEach(b => b.onclick = () => openCase(Number(b.dataset.id)));
+  return cases;
 }
 
 async function openCase(id){
   current = id;
+  history.replaceState(null, "", `#case=${id}`);
   const r = await api(`/api/staff/cases/${id}/report`);
+  currentStatus = r.status;
   await loadQueue();
   render(r);
+  await refreshChat();
 }
 
 function render(r){
@@ -166,6 +132,17 @@ function render(r){
     <div class="card"><h3>Отнесено клиентом к личным (${m.personal_income.length})</h3>
       <div class="scroll"><table><tr><th>Дата</th><th>Отправитель</th><th class="num">Сумма</th><th>Комментарий</th><th></th></tr>${personal || '<tr><td colspan="5" class="muted">Нет</td></tr>'}</table></div></div>
   </div>
+  <div class="two">
+    <div class="card docs"><h3>Документы клиента (${r.documents.length})</h3>
+      ${r.documents.length ? `<table><tr><th>Документ</th><th>Файл</th><th>Загружен</th></tr>${r.documents.map(x =>
+        `<tr><td>${esc(DOC[x.doc_type] || x.doc_type)}</td><td><a href="/api/staff/cases/${r.case_id}/documents/${x.id}">${esc(x.filename)}</a></td><td>${dt(x.uploaded_at)}</td></tr>`).join("")}</table>`
+        : '<div class="muted">Клиент ещё ничего не загрузил</div>'}
+      <div class="note">Операции по карте взяты из системы банка, а не от клиента.</div></div>
+    <div class="card"><h3>Переписка с клиентом</h3>
+      <div class="chat" id="chat"></div>
+      <div class="composer"><textarea id="msg" placeholder="Написать клиенту"></textarea>
+        <button class="primary" onclick="sendMessage()">Отправить</button></div></div>
+  </div>
   <div class="card"><h3>Решение</h3>
     <label class="muted">Точечный запрос клиенту (черновик системы, можно править — по строке на пункт)</label>
     <textarea id="reqText">${esc((r.request_draft || []).join("\n"))}</textarea>
@@ -199,13 +176,37 @@ async function requestDocs(){
     openCase(current);
   }catch(e){ toast("Ошибка: " + e.message); }
 }
+async function refreshChat(){
+  const el = document.getElementById("chat");
+  if (el && current) renderChat(el, await api(`/api/staff/cases/${current}/messages`), "staff");
+}
+async function sendMessage(){
+  const ta = document.getElementById("msg");
+  const text = ta.value.trim();
+  if (!text) return;
+  try{ renderChat(document.getElementById("chat"), await api(`/api/staff/cases/${current}/messages`, {method:"POST", body: JSON.stringify({text})}), "staff"); ta.value = ""; }
+  catch(e){ toast("Ошибка: " + e.message); }
+}
+// подхватываем действия клиента: новые кейсы в очереди, сообщения, повторную отправку пакета
+setInterval(async () => {
+  try{
+    const cases = await loadQueue();
+    if (!current) return;
+    const c = cases.find(x => x.id === current);
+    if (c && c.status !== currentStatus && !isTyping()) await openCase(current);
+    else await refreshChat();
+  }catch(_){ /* сервер перезапускается — попробуем в следующий раз */ }
+}, 5000);
 document.getElementById("seedBtn").onclick = async () => {
   const b = document.getElementById("seedBtn"); b.disabled = true;
   try{ const r = await api("/api/demo/seed", {method:"POST"}); toast(`Добавлено кейсов: ${r.case_ids.length}`); await loadQueue(); openCase(r.case_ids[0]); }
   catch(e){ toast("Ошибка: " + e.message); }
   finally{ b.disabled = false; }
 };
-loadQueue().catch(e => document.getElementById("queue").innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`);
+loadQueue().then(() => {
+  const id = Number((location.hash.match(/case=(\d+)/) || [])[1]);  // ссылка вида /staff#case=5
+  if (id) openCase(id);
+}).catch(e => document.getElementById("queue").innerHTML = `<div class="empty">Ошибка: ${esc(e.message)}</div>`);
 </script>
 </body>
 </html>

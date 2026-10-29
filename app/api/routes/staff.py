@@ -1,8 +1,10 @@
 """Рабочее место сотрудника: очередь кейсов, готовая сверка, структурированный запрос и решение."""
 
 import time
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_case
@@ -10,7 +12,8 @@ from app.db import repository
 from app.db.session import get_db
 from app.models.enums import CaseStatus
 from app.models.orm import Case, utcnow
-from app.models.schemas import CaseOut, DecisionIn, DocsRequest
+from app.models.schemas import CaseOut, DecisionIn, DocsRequest, MessageIn, MessageOut
+from app.services import conversation
 from app.services.bank.transactions import pull_transactions
 from app.services.review.report import build_report, suggest_request
 
@@ -39,7 +42,32 @@ def report(case: Case = Depends(get_case), db: Session = Depends(get_db)):
     data = build_report(case)
     data["request_draft"] = suggest_request(case, data)
     data["build_ms"] = round((time.perf_counter() - started) * 1000)  # сколько заняла автоматическая сверка
+    data["documents"] = [{"id": d.id, "doc_type": d.doc_type.value, "filename": d.filename, "uploaded_at": d.uploaded_at}
+                         for d in sorted(case.documents, key=lambda d: d.uploaded_at)]
     return data
+
+
+@router.get("/cases/{case_id}/documents/{doc_id}")
+def download_document(doc_id: int, case: Case = Depends(get_case)):
+    """Файл, который загрузил клиент: справка, договор, пояснение или выгрузка чеков."""
+    doc = next((d for d in case.documents if d.id == doc_id), None)
+    if not doc or not Path(doc.path).exists():
+        raise HTTPException(404, "Документ не найден")
+    return FileResponse(doc.path, filename=doc.filename)
+
+
+@router.get("/cases/{case_id}/messages", response_model=list[MessageOut])
+def list_messages(case: Case = Depends(get_case), db: Session = Depends(get_db)):
+    """Переписка с клиентом. Сотрудник видит и свои обоснования решений."""
+    return conversation.feed(repository.list_events(db, case.id), for_staff=True)
+
+
+@router.post("/cases/{case_id}/messages", response_model=list[MessageOut], status_code=201)
+def send_message(body: MessageIn, case: Case = Depends(get_case), db: Session = Depends(get_db)):
+    """Сотрудник пишет клиенту. Возвращает обновлённую ленту."""
+    repository.log_event(db, case, "staff", "message", {"text": body.text.strip()})
+    db.commit()
+    return conversation.feed(repository.list_events(db, case.id), for_staff=True)
 
 
 @router.post("/cases/{case_id}/transactions/sync")

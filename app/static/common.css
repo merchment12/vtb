@@ -1,0 +1,43 @@
+/* Общие стили экранов клиента и сотрудника */
+:root{
+  --navy:#0A2A82; --blue:#1F5FD1; --sky:#00A3E0; --bg:#F4F7FC; --card:#FFFFFF; --line:#DCE3EF;
+  --ink:#0B1B3F; --muted:#4A5878; --soft:#EAF0F9;
+  --ok:#1E7B4F; --ok-bg:#E6F4EC; --info:#1F5FD1; --info-bg:#EAF0F9;
+  --warn:#9A5B00; --warn-bg:#FFF3DC; --high:#B3261E; --high-bg:#FDE8E7;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:Manrope,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px;line-height:1.45}
+header{background:var(--navy);color:#fff;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;position:sticky;top:0;z-index:5}
+header h1{font-size:17px;margin:0;font-weight:800}
+header small{color:#9FC0F0;font-weight:600}
+header a{color:#9FC0F0;font-weight:700;text-decoration:none}
+header a:hover{color:#fff}
+button{font:inherit;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 14px;cursor:pointer;font-weight:700}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+button.danger{color:var(--high);border-color:#F2C4C1}
+button.ghost{background:transparent;color:#fff;border-color:#3A5BB0}
+button:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 20px}
+.card h3{margin:0 0 12px;font-size:16px;font-weight:800}
+.chip{display:inline-block;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;white-space:nowrap}
+.chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.info{background:var(--info-bg);color:var(--info)}
+.chip.warn{background:var(--warn-bg);color:var(--warn)} .chip.high{background:var(--high-bg);color:var(--high)}
+.muted{color:var(--muted)}
+.empty{color:var(--muted);padding:24px;text-align:center}
+.actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+textarea,input[type=text],input[type=date],select{font:inherit;width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--ink);background:#fff}
+textarea{min-height:120px;resize:vertical}
+.note{font-size:12px;color:var(--muted);margin-top:8px}
+.toast{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:12px;display:none;max-width:360px;z-index:10}
+
+/* переписка */
+.chat{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto;padding:2px}
+.msg{max-width:85%;padding:10px 12px;border-radius:14px;font-size:13px;overflow-wrap:anywhere}
+.msg.mine{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.msg.theirs{align-self:flex-start;background:var(--soft);border-bottom-left-radius:4px}
+.msg.system{align-self:center;background:transparent;color:var(--muted);font-size:12px;padding:2px 8px;text-align:center}
+.msg time{display:block;font-size:11px;opacity:.7;margin-top:4px}
+.msg ul{margin:6px 0 0;padding-left:18px}
+.msg b.who{display:block;font-size:11px;opacity:.8;margin-bottom:2px}
+.composer{display:flex;gap:8px;margin-top:12px;align-items:flex-end}
+.composer textarea{min-height:44px;height:44px}
